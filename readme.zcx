@@ -1,0 +1,55 @@
+'''scripts for updating COFACTOR library'''
+fetch.py      # fetch PDB file from internet. must run at login node
+fixMSE.py     # convert MSE residues in PDB file to MET residues
+              # remove lines not correspdonding to 20 standard amino acid
+pdb2fasta.py  # Convert single chain PDB file into FASTA sequence
+MakeMTX.sh    # run legacy PSI-BLAST to generate blast output and
+              # log-odds of sequence profile (MTX)
+              # Location of nr database is specified by "nrdb"
+              # Top level location of legacy blast is specified by "blastdir"
+MakePRF.pl    # Generate Henikoff weighted frequency (PRF)
+MakeJSD.pl    # Generate Jensen-Shannon Divergence (JSD) & Sum of Pairs (SOP)
+alignhits.pl  # Convert blast output into multiple sequence alignment. Called
+              # by MakeJSD.pl. Must be in the same folder of MakeJSD.pl
+psiblast4allPDB.sh # sequentially run fixMSE.py, getfasta.py, MakeMTX.sh
+                   # MakePRF.pl MakeJSD.pl on a folder of single chain PDB
+
+pdball2fasta.sh # generate FASTA sequece for a folder of PDB
+map_library.pl  # create mapping between 2 non-redundant FASTA sequence database
+                # Top level path of legacy blast specified by "blastdir"
+map_library.py  # Python implement of map_library.pl, recommneded over perl 
+                # version
+
+create_PDB_GOterms.py # generate mapping between PDB chain and GO
+obo2csv.py*   # parse obo format ontology file. 
+              # Module imported by create_PDB_GOterms.py
+
+'''how to make library file for one PDB chain 1adnA.pdb'''
+fetch.py 1adnA
+fixMSE.py -clean=true 1adnA 1adnA    # fix MSE residues
+reindex_pdb.py 1 1adnA.pdb 1adnA.pdb # make residue number starts from one
+pdb2fasta.py -outfmt=COFACTOR 1adnA.pdb > 1adnA.fasta
+MakeMTX.sh 1adnA.fasta 1adnA.blast 1adnA.mtx
+MakeJSD.pl 1adnA.fasta 1adnA.blast 1adnA.jsd 1adnA.sop
+MakePRF.pl 1adnA.fasta 1adnA.blast 1adnA.prf
+
+'''how to make library file for a list "GP/list" of PDB files under folder "GO/" '''
+## generate library files for individual GO chains
+psiblast4allPDB.sh -runstyle=parallel GO/ GO/list
+
+## generate sequence database for all GO chains
+mkdir -p GO/sequence
+cat GO/FASTA/*fasta > GO/sequence/lib.fasta
+formatdb -i GO/sequence/lib.fasta -p T -o T -l GO/sequence/formatdb.log
+
+## generate fasta sequences for all LOMETS PDB chains
+mkdir -p PDB/FASTA
+mkdir -p PDB/sequence
+psiblast4allPDB.sh -outfmt=sequence /nfs/amino-library/PDB/ /nfs/amino-library/PDB/list PDB/FASTA
+cat PDB/FASTA/*fasta > PDB/sequence/lib.fasta
+formatdb -i PDB/sequence/lib.fasta -p T -o T -l PDB/sequence/formatdb.log
+map_library.py -mapfirst=true -ncbidir=/nfs/amino-library/blast PDB/sequence/lib.fasta GO/sequence/lib.fasta > NRPDB_GO.map
+map_library.py -mapfirst=false -ncbidir=/nfs/amino-library/blast PDB/sequence/lib.fasta PDB/sequence/lib.fasta > NRPDB_PDBALL.map
+
+## create PDB GO terms mapping for a list of PDB chains'''
+create_PDB_GOterms.py -is_a=true p.list > PDB_GOterms.dat
