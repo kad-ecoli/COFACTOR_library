@@ -171,7 +171,7 @@ if __name__=="__main__":
         if arg.startswith("-ncbidir="):
             ncbidir=arg[len("-ncbidir="):]
         elif arg.startswith("-mapfirst="):
-            mapfirst=(arg[len("-mapfirst=")].lower()=="true")
+            mapfirst=(arg[len("-mapfirst="):].lower()=="true")
         elif arg.startswith("-phmmer_path="):
             phmmer_path=arg[len("-phmmer_path="):]
         else:
